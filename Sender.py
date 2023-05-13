@@ -24,7 +24,7 @@ class Sender():
         
         prompt = prompt.replace("_", " ")
         prompt = " ".join(prompt.split())
-        prompt = re.sub(r"[^a-zA-Z0-9\s]+", "", prompt)
+        prompt = re.sub(r"[^a-zA-Z0-9:\s]+", "", prompt)
         prompt = prompt.lower()
 
         if seed is None:

@@ -12,6 +12,7 @@ import apsw.ext
 from Sender import Sender
 from Receiver import Receiver
 from helpers import *
+from prompt_template import *
 
 
 # Config
@@ -24,8 +25,8 @@ openai.api_key = config["openai_api_key"]
 
 if "requests" not in st.session_state:
     st.session_state["requests"] = []
-if "responses" not in st.session_state:
-    st.session_state["responses"] = []
+if "gpt_responses" not in st.session_state:
+    st.session_state["gpt_responses"] = ""
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = str(uuid.uuid4())
     print("[*] user_id", st.session_state["user_id"])
@@ -52,7 +53,7 @@ with st.sidebar:
         style = pills("💊 Style (Only for Niji)", ["Cute", "Expressive", "Scenic"])
         ar = pills("🖼 Aspect Ratio", ["3:4", "4:5", "9:16", "1:1", "16:9", "5:4", "4:3"])
         stylize = st.slider("🧂 Stylize", 0, 1000, 100, 50)
-        quality = st.slider("🎨 Quality", .25, 2., .25, .25)
+        quality = st.slider("🎨 Quality", .25, 2., 1., .25)
         seed = st.number_input("⚙️ Seed", -1, 4294967295, -1)
         tile = st.checkbox("Tile", False)
         creative = pills("Creative (Only for Midjourney)", [None, "test", "testp"])
@@ -62,9 +63,11 @@ with st.sidebar:
     history = st.empty().markdown("- Empty")
 
 # Prompt
-prompt = st.text_input("Prompt", placeholder="Imagine...", key="input")
+prompt = st.text_input("Prompt", placeholder="Draw your imagination or use ? to ask ChatGPT to generate prompts.", key="input")
 
 focus()
+
+prompt_helper = st.empty()
 
 # Footer
 footer_content = [
@@ -79,6 +82,27 @@ footer(*footer_content)
 
 # Function
 if prompt:
+    if prompt.startswith("?"):
+        gpt_prompt.append({
+            "role": "user",
+            "content": prompt
+        })
+
+        response = openai.ChatCompletion.create(model="gpt-3.5-turbo",
+                                                messages=gpt_prompt,
+                                                stream=True)
+
+        collected_messages = []
+        for chunk in response:
+            chunk_message = chunk['choices'][0]['delta']
+
+            if "content" in chunk_message:
+                collected_messages.append(chunk_message["content"])
+                gpt_response = ''.join(collected_messages)
+                prompt_helper.markdown(gpt_response)
+
+        prompt = ''.join([c for c in collected_messages])
+
     if seed == -1:
         seed = None
 
@@ -130,7 +154,7 @@ if prompt:
 
             for i, row in enumerate(rows):
                 try:
-                    prompts[i].text(f"{row['full_prompt']} ({row['status']}%)")
+                    prompts[i].markdown(f"{row['full_prompt']} ({row['status']}%)")
                 except:
                     pass
 
@@ -150,18 +174,3 @@ if prompt:
                 break
 
         time.sleep(5)
-
-    # res_box = st.empty()
-    # report = []
-    # for res in openai.Completion.create(model='text-davinci-003',
-    #                                     prompt=prompt,
-    #                                     max_tokens=120, 
-    #                                     temperature=0.5,
-    #                                     stream=True):
-    #     report.append(res.choices[0].text)
-    #     result = "".join(report).strip()
-    #     # result = result.replace("\n", "")
-    #     res_box.markdown(f'*{result}*') 
-
-    # result = "".join(report).strip()
-    # st.session_state['responses'].append(result)
