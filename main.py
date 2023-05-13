@@ -27,19 +27,16 @@ if "responses" not in st.session_state:
     st.session_state["responses"] = []
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = str(uuid.uuid4())
-if "last_queue_id" not in st.session_state:
-    st.session_state["last_queue_id"] = None
 
 @st.cache_resource
 def load_resources(user_id):
     con = apsw.Connection("mj.db")
+    def row_factory(cursor, row):
+        columns = [t[0] for t in cursor.getdescription()]
+        return dict(zip(columns, row))
+    con.setrowtrace(row_factory)
     return con, Sender(config=config), Receiver(config, "images", user_id, con)
 con, sender, receiver = load_resources(st.session_state["user_id"])
-
-def row_factory(cursor, row):
-    columns = [t[0] for t in cursor.getdescription()]
-    return dict(zip(columns, row))
-con.setrowtrace(row_factory)
 
 
 # UI
@@ -74,7 +71,6 @@ if submit_button and user_input:
     st.session_state["requests"].append(user_input)
 
     con.execute(f"insert into queues (user_id, full_prompt, created_at) values('{st.session_state['user_id']}', '{full_prompt}', '{datetime.now()}')")
-    st.session_state["last_queue_id"] = con.last_insert_rowid()
 
     imgs, prompts, breaks = [], [], []
 
