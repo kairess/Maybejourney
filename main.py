@@ -49,7 +49,8 @@ st.header("Middlejourney")
 
 # Form
 with st.sidebar:
-    pass
+    st.subheader("History")
+    history = st.empty().markdown("👋")
 
 with st.form("form", clear_on_submit=True):
     user_input = st.text_input("Prompt", placeholder="Imagine...", key="input")
@@ -78,9 +79,14 @@ if submit_button and user_input:
     imgs, prompts, breaks = [], [], []
 
     for req in st.session_state["requests"]:
-        prompts.append(st.empty().text(req))
+        prompts.append(st.empty())
         imgs.append(st.empty())
         breaks.append(st.empty())
+
+    history_text = ""
+    for i, row in enumerate(con.execute("select * from queues where user_id = ? order by created_at desc", (st.session_state["user_id"],)).fetchall()):
+        history_text += f"- {row['full_prompt']}\n"
+    history.markdown(history_text)
 
 
     while True:
@@ -88,6 +94,7 @@ if submit_button and user_input:
         receiver.outputer()
         receiver.downloading_results()
 
+        # TODO: Error sometimes KeyError: 'user_id'
         for i, row in enumerate(con.execute("select * from prompts where user_id = ? order by created_at desc", (st.session_state["user_id"],)).fetchall()):
             prompts[i].text(f"{row['full_prompt']} ({row['status']}%)")
 
