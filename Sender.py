@@ -46,7 +46,7 @@ class Sender():
                 "options": [{
                     "type": 3,
                     "name": "prompt",
-                    "value": full_prompt,
+                    "value": f"{full_prompt} --q .25",
                 }],
                 "attachments": []
             },

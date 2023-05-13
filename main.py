@@ -11,6 +11,7 @@ import apsw
 import apsw.ext
 from Sender import Sender
 from Receiver import Receiver
+from helpers import *
 
 
 # Config
@@ -28,8 +29,6 @@ if "responses" not in st.session_state:
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = str(uuid.uuid4())
     print("[*] user_id", st.session_state["user_id"])
-if "is_running" not in st.session_state:
-    st.session_state["is_running"] = False
 
 @st.cache_resource
 def load_resources(user_id):
@@ -44,7 +43,7 @@ con, sender, receiver = load_resources(st.session_state["user_id"])
 
 # UI
 st.header("Middlejourney")
-# selected = pills("", ["NO Streaming", "Streaming"], ["🎈", "🌈"])
+selected = pills("", ["NO Streaming", "Streaming"], ["🎈", "🌈"])
 
 
 # Form
@@ -52,9 +51,9 @@ with st.sidebar:
     st.subheader("History")
     history = st.empty().markdown("👋")
 
-with st.form("form", clear_on_submit=True):
-    user_input = st.text_input("Prompt", placeholder="Imagine...", key="input")
-    submit_button = st.form_submit_button(label="Submit")
+prompt = st.text_input("Prompt", placeholder="Imagine...", key="input")
+
+focus()
 
 # Footer
 footer_content = [
@@ -68,12 +67,10 @@ footer(*footer_content)
 
 
 # Function
-if submit_button and user_input:
-    st.session_state["is_running"] = True
+if prompt:
+    full_prompt = sender.send(prompt=prompt)
 
-    full_prompt = sender.send(prompt=user_input)
-
-    st.session_state["requests"].append(user_input)
+    st.session_state["requests"].append(prompt)
 
     con.execute(f"insert into queues (user_id, full_prompt, created_at) values('{st.session_state['user_id']}', '{full_prompt}', '{datetime.now()}')")
 
@@ -118,6 +115,7 @@ if submit_button and user_input:
                     is_all_done = False
 
             if is_all_done:
+                focus()
                 break
 
         time.sleep(5)
@@ -125,7 +123,7 @@ if submit_button and user_input:
     # res_box = st.empty()
     # report = []
     # for res in openai.Completion.create(model='text-davinci-003',
-    #                                     prompt=user_input,
+    #                                     prompt=prompt,
     #                                     max_tokens=120, 
     #                                     temperature=0.5,
     #                                     stream=True):
