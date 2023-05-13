@@ -16,7 +16,7 @@ from prompt_template import *
 
 
 # Config
-st.set_page_config(page_title="Maybejourney - YouTube 빵형의 개발도상국")
+st.set_page_config(page_title="Maybejourney - YouTube 빵형의 개발도상국", page_icon="🎨")
 
 @st.cache_data
 def load_config(path=".env"):
