@@ -2,12 +2,8 @@ import openai
 import streamlit as st
 from streamlit_pills import pills
 from dotenv import dotenv_values
-from footer import footer, image, link
-from htbuilder.units import px
-from htbuilder import br
+from footer import footer, link
 
-from threading import Thread
-from streamlit.runtime.scriptrunner import add_script_run_ctx
 import time
 import uuid
 from datetime import datetime
