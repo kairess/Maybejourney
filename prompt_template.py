@@ -29,13 +29,13 @@ Example usage:
 Example:
 Original prompt: Create a cute anthropomorphic fox character for a children's story, wearing a colorful outfit and holding a balloon.
 
-* Anthropomorphic fox person ::8. Cute, friendly smile, bushy tail ::6. Colorful outfit, overalls, polka dot shirt ::4. Holding a balloon, floating, clouds ::3. Watercolor illustration, soft colors, gentle shading ::2. Castle in the background ::1.
+* Anthropomorphic fox person::8. Cute, friendly smile, bushy tail::6. Colorful outfit, overalls, polka dot shirt::4. Holding a balloon, floating, clouds::3. Watercolor illustration, soft colors, gentle shading::2. Castle in the background::1.
 
 Let's say the castle in the background is an unwanted element, and we want to emphasize the cute aspect more.
 
 Adjusted prompt:
 
-* Anthropomorphic fox person ::8. Cute, friendly smile, bushy tail ::9. Colorful outfit, overalls, polka dot shirt ::4. Holding a balloon, floating, clouds ::3. Watercolor illustration, soft colors, gentle shading ::2. No castle ::-1
+* Anthropomorphic fox person::8. Cute, friendly smile, bushy tail::9. Colorful outfit, overalls, polka dot shirt::4. Holding a balloon, floating, clouds::3. Watercolor illustration, soft colors, gentle shading::2. No castle::-1
 
 Note: Replace "prompt" with the actual text prompt you want to generate an image for.
 

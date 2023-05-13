@@ -16,6 +16,8 @@ from prompt_template import *
 
 
 # Config
+st.set_page_config(page_title="Maybejourney - YouTube 빵형의 개발도상국")
+
 @st.cache_data
 def load_config(path=".env"):
     return dotenv_values(path)
@@ -59,8 +61,9 @@ with st.sidebar:
         creative = pills("Creative (Only for Midjourney)", [None, "test", "testp"])
         submit = st.form_submit_button("Apply")
 
-    st.subheader("History")
-    history = st.empty().markdown("- Empty")
+    with st.container():
+        st.subheader("History")
+        history = st.empty().markdown("- Empty")
 
 # Prompt
 prompt = st.text_input("Prompt", placeholder="Draw your imagination or use ? to ask ChatGPT to generate prompts.", key="input")
