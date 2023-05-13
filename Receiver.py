@@ -12,6 +12,7 @@ class Receiver():
         self.local_path = local_path
         self.user_id = user_id
         self.con = con
+        self.last_full_prompt = None
 
         self.sender_initializer()
 
@@ -25,11 +26,15 @@ class Receiver():
             f"https://discord.com/api/v10/channels/{self.channel_id}/messages?limit={10}", headers=self.headers)
         return r.json()
 
-    def collecting_results(self):
+    def collecting_results(self, full_prompt):
         message_list  = self.retrieve_messages()
 
         for message in message_list:
             if (message["author"]["username"] == "Midjourney Bot") and ("**" in message["content"]):
+
+                if full_prompt not in message["content"]:
+                    continue
+
                 ### Has attachments
                 if len(message["attachments"]) > 0:
                     ### Done
@@ -44,8 +49,7 @@ class Receiver():
                             self.con.execute("insert into prompts (id, user_id, prompt, full_prompt, url, filename, is_downloaded, status, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)", (id, self.user_id, prompt, full_prompt, url, filename, 0, 100, str(datetime.now())))
 
                             self.con.execute("delete from prompts where user_id = ? and status != ?", (self.user_id, 100))
-                        # else: # id value changed after done
-                        #     self.con.execute("update prompts set url = ?, filename = ? where id = ?", (url, filename, id))
+                            break
                     ### Rendering
                     else:
                         id = message["id"]
@@ -62,8 +66,10 @@ class Receiver():
 
                         if not self.con.execute("select * from prompts where id = ? limit 1", (id,)).fetchone():
                             self.con.execute("insert into prompts (id, user_id, prompt, full_prompt, url, is_downloaded, status, created_at) values (?, ?, ?, ?, ?, ?, ?, ?)", (id, self.user_id, prompt, full_prompt, url, 0, status, str(datetime.now())))
+                            break
                         else:
                             self.con.execute("update prompts set url = ?, status = ? where id = ?", (url, status, id))
+                            break
                 ### Add to queue
                 else:
                     id = message["id"]
@@ -74,8 +80,9 @@ class Receiver():
                     if "(Waiting to start)" in message["content"]:
                         status = 0
 
-                    # if not self.con.execute("select * from prompts where id = ? limit 1", (id,)).fetchone():
-                    #     self.con.execute("insert into prompts (id, user_id, prompt, full_prompt, is_downloaded, status, created_at) values (?, ?, ?, ?, ?, ?, ?)", (id, self.user_id, prompt, full_prompt, 0, -1, str(datetime.now())))
+                    if not self.con.execute("select * from prompts where id = ? limit 1", (id,)).fetchone():
+                        self.con.execute("insert into prompts (id, user_id, prompt, full_prompt, is_downloaded, status, created_at) values (?, ?, ?, ?, ?, ?, ?)", (id, self.user_id, prompt, full_prompt, 0, -1, str(datetime.now())))
+                        break
 
     def outputer(self):
         waiting_for_download = self.con.execute("select full_prompt from prompts where is_downloaded = 0 and filename is not null and status = 100").fetchall()

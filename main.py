@@ -27,6 +27,9 @@ if "responses" not in st.session_state:
     st.session_state["responses"] = []
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = str(uuid.uuid4())
+    print("[*] user_id", st.session_state["user_id"])
+if "is_running" not in st.session_state:
+    st.session_state["is_running"] = False
 
 @st.cache_resource
 def load_resources(user_id):
@@ -66,6 +69,8 @@ footer(*footer_content)
 
 # Function
 if submit_button and user_input:
+    st.session_state["is_running"] = True
+
     full_prompt = sender.send(prompt=user_input)
 
     st.session_state["requests"].append(user_input)
@@ -84,9 +89,10 @@ if submit_button and user_input:
         history_text += f"- {row['full_prompt']}\n"
     history.markdown(history_text)
 
+    is_all_done = True
 
     while True:
-        receiver.collecting_results()
+        receiver.collecting_results(full_prompt)
         receiver.outputer()
         receiver.downloading_results()
 
@@ -101,6 +107,12 @@ if submit_button and user_input:
                     pass
 
             breaks[i].markdown("----")
+
+            if row["status"] != 100:
+                is_all_done = False
+
+        # if is_all_done:
+        #     break
 
         time.sleep(5)
 
