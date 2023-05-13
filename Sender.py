@@ -31,6 +31,7 @@ class Sender():
             seed = random.randint(0, 4294967295)
 
         full_prompt = f"{str(prompt)} --seed {int(seed)} {flags}".strip()
+        full_prompt = re.sub(r"\s+", " ", full_prompt)
 
         payload = {
             "type": 2, 
@@ -46,7 +47,7 @@ class Sender():
                 "options": [{
                     "type": 3,
                     "name": "prompt",
-                    "value": f"{full_prompt} --q .25",
+                    "value": f"{full_prompt}",
                 }],
                 "attachments": []
             },

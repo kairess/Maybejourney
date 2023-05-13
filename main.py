@@ -42,15 +42,26 @@ con, sender, receiver = load_resources(st.session_state["user_id"])
 
 
 # UI
-st.header("Middlejourney")
-selected = pills("", ["NO Streaming", "Streaming"], ["🎈", "🌈"])
+st.header("Maybejourney")
 
-
-# Form
+# Sidebar
 with st.sidebar:
-    st.subheader("History")
-    history = st.empty().markdown("👋")
+    with st.form("parameters-form"):
+        st.subheader("Parameters")
+        model = pills("🤖 Model", ["Midjourney", "Niji"])
+        style = pills("💊 Style (Only for Niji)", ["Cute", "Expressive", "Scenic"])
+        ar = pills("🖼 Aspect Ratio", ["3:4", "4:5", "9:16", "1:1", "16:9", "5:4", "4:3"])
+        stylize = st.slider("🧂 Stylize", 0, 1000, 100, 50)
+        quality = st.slider("🎨 Quality", .25, 2., .25, .25)
+        seed = st.number_input("⚙️ Seed", -1, 4294967295, -1)
+        tile = st.checkbox("Tile", False)
+        creative = pills("Creative (Only for Midjourney)", [None, "test", "testp"])
+        submit = st.form_submit_button("Apply")
 
+    st.subheader("History")
+    history = st.empty().markdown("- Empty")
+
+# Prompt
 prompt = st.text_input("Prompt", placeholder="Imagine...", key="input")
 
 focus()
@@ -68,7 +79,27 @@ footer(*footer_content)
 
 # Function
 if prompt:
-    full_prompt = sender.send(prompt=prompt)
+    if seed == -1:
+        seed = None
+
+    flags = ""
+    if model == "Niji":
+        flags += " --niji"
+        if style:
+            flags += f" --style {style.lower()}"
+    if ar:
+        flags += f" --ar {ar}"
+    if tile:
+        flags += " --tile"
+    if creative:
+        flags += f" --creative --{creative}"
+    else:
+        if quality:
+            flags += f" --q {quality}"
+    if stylize:
+        flags += f" --stylize {stylize}"
+
+    full_prompt = sender.send(prompt=prompt, seed=seed, flags=flags)
 
     st.session_state["requests"].append(prompt)
 
