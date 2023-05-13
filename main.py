@@ -89,30 +89,36 @@ if submit_button and user_input:
         history_text += f"- {row['full_prompt']}\n"
     history.markdown(history_text)
 
-    is_all_done = True
-
     while True:
         receiver.collecting_results(full_prompt)
         receiver.outputer()
         receiver.downloading_results()
 
         # TODO: Error sometimes KeyError: 'user_id'
-        for i, row in enumerate(con.execute("select * from prompts where user_id = ? order by created_at desc", (st.session_state["user_id"],)).fetchall()):
-            prompts[i].text(f"{row['full_prompt']} ({row['status']}%)")
+        rows = con.execute("select * from prompts where user_id = ? order by created_at desc", (st.session_state["user_id"],)).fetchall()
 
-            if row["url"]:
+        if rows and len(st.session_state["requests"]) == len(rows):
+            is_all_done = True
+
+            for i, row in enumerate(rows):
                 try:
-                    imgs[i].image(row["url"])
+                    prompts[i].text(f"{row['full_prompt']} ({row['status']}%)")
                 except:
                     pass
 
-            breaks[i].markdown("----")
+                if row["url"]:
+                    try:
+                        imgs[i].image(row["url"])
+                    except:
+                        pass
 
-            if row["status"] != 100:
-                is_all_done = False
+                breaks[i].markdown("----")
 
-        # if is_all_done:
-        #     break
+                if row["status"] != 100:
+                    is_all_done = False
+
+            if is_all_done:
+                break
 
         time.sleep(5)
 
