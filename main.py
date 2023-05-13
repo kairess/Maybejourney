@@ -86,13 +86,14 @@ footer(*footer_content)
 # Function
 if prompt:
     if prompt.startswith("?"):
-        gpt_prompt.append({
+        new_gpt_prompt = gpt_prompt.copy()
+        new_gpt_prompt.append({
             "role": "user",
             "content": prompt
         })
 
         response = openai.ChatCompletion.create(model="gpt-3.5-turbo",
-                                                messages=gpt_prompt,
+                                                messages=new_gpt_prompt,
                                                 stream=True)
 
         collected_messages = []
