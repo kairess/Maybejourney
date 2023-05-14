@@ -19,6 +19,9 @@ Midjourney UI: An elegantly designed, highly customizable interface, purpose-bui
 3.  Make sure generation works from your server
 4. Log in to Discord in Chrome browser, open your server's text channel, click on three points upper right corner, then More Tools and then Developer Tools. Select Network tab, you'll see all the network activity of your page.
 5. Now type any prompt to generate in your text channel, and after you press Enter to send message with prompt, you'll see in Network Activity new line named "interaction". Press on it and choose Payload tab and you'll see payload_json - that's what we need! Copy channelid, application_id, guild_id, session_id, version and id values, we'll need it a little bit later. Then move from Payload tab to Headers tab and find "authorization" field, copy it's value too.
+
+![](assets/help01.png)
+
 ---
 6. Copy and paste payload and header values to `.env` file. (Rename `.env.template` to `.env`)
 7. Get OpenAI API key from [here](https://platform.openai.com/account/api-keys) and copy/paste into `.env`.
