@@ -3,3 +3,4 @@ __pycache__
 images/*
 *.db
 .DS_Store
+.streamlit/*
