@@ -1,6 +1,8 @@
 import streamlit as st
 import apsw
 import os
+from helpers import *
+from footer import footer
 
 PAGE_SIZE = 9
 COLUMN_SIZE = 3
@@ -68,3 +70,5 @@ if st.session_state["page"] == 0:
 col1, col2 = st.columns(2)
 col1.button("Previous", on_click=move_page, args=(-1,), type="primary", use_container_width=True, disabled=True if st.session_state["page"] == 1 else False)
 col2.button("Next", on_click=move_page, args=(1,), type="primary", use_container_width=True, disabled=st.session_state["done"])
+
+footer(*footer_content)
