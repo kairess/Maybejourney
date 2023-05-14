@@ -1,16 +1,16 @@
-import openai
 import streamlit as st
 from streamlit_pills import pills
+from streamlit_extras.switch_page_button import switch_page
 from dotenv import dotenv_values
-from footer import footer, link
-
+import openai
+import apsw
+import apsw.ext
 import time
 import uuid
 from datetime import datetime
-import apsw
-import apsw.ext
 from Sender import Sender
 from Receiver import Receiver
+from footer import footer
 from helpers import *
 from prompt_template import *
 
@@ -32,6 +32,8 @@ if "gpt_responses" not in st.session_state:
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = str(uuid.uuid4())
     print("[*] user_id", st.session_state["user_id"])
+if "latest_id" not in st.session_state:
+    st.session_state["latest_id"] = None
 
 @st.cache_resource
 def load_resources(user_id):
@@ -47,8 +49,23 @@ con, sender, receiver = load_resources(st.session_state["user_id"])
 # UI
 st.header("Maybejourney")
 
+def like():
+    st.session_state["input"] = ""
+    latest_id = st.session_state["latest_id"]
+    if not latest_id:
+        return False
+
+    con.execute("update prompts set is_liked = ? where id = ? and is_downloaded = 1", (1, latest_id))
+
+
 # Sidebar
 with st.sidebar:
+    like_button = st.button("❤️ Scrap the latest image", on_click=like)
+    if like_button and st.session_state["latest_id"]:
+        st.success("Look around our gallery to see others!")
+        time.sleep(1)
+        switch_page("Gallery")
+
     with st.form("parameters-form"):
         st.subheader("Parameters")
         model = pills("🤖 Model", ["Midjourney", "Niji"])
@@ -68,20 +85,9 @@ with st.sidebar:
 # Prompt
 prompt = st.text_input("Prompt", placeholder="Draw your imagination or use ? to ask ChatGPT to generate prompts.", key="input")
 
-focus()
-
 prompt_helper = st.empty()
 
-# Footer
-footer_content = [
-    "Made with ❤️ by ",
-    link("https://github.com/kairess", "kairess"),
-    " / ",
-    link("https://www.youtube.com/@bbanghyong", "빵형의 개발도상국"),
-]
-
 footer(*footer_content)
-
 
 # Function
 if prompt:
@@ -156,6 +162,8 @@ if prompt:
         if rows and len(st.session_state["requests"]) == len(rows):
             is_all_done = True
 
+            st.session_state["latest_id"] = rows[0]["id"]
+
             for i, row in enumerate(rows):
                 try:
                     prompts[i].markdown(f"{row['full_prompt']} ({row['status']}%)")
@@ -174,7 +182,6 @@ if prompt:
                     is_all_done = False
 
             if is_all_done:
-                focus()
                 break
 
         time.sleep(5)

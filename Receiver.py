@@ -26,13 +26,13 @@ class Receiver():
             f"https://discord.com/api/v10/channels/{self.channel_id}/messages?limit={10}", headers=self.headers)
         return r.json()
 
-    def collecting_results(self, full_prompt):
+    def collecting_results(self, full_prompt_user):
         message_list  = self.retrieve_messages()
 
         for message in message_list:
             if (message["author"]["username"] == "Midjourney Bot") and ("**" in message["content"]):
 
-                if full_prompt not in message["content"]:
+                if full_prompt_user not in message["content"]:
                     continue
 
                 ### Has attachments

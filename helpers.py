@@ -1,4 +1,13 @@
 from streamlit.components.v1 import html
+from footer import link
+
+# Footer
+footer_content = [
+    "Made with ❤️ by ",
+    link("https://github.com/kairess", "kairess"),
+    " / ",
+    link("https://www.youtube.com/@bbanghyong", "빵형의 개발도상국"),
+]
 
 def focus():
     html(f"""<script>
