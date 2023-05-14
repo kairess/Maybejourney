@@ -82,7 +82,8 @@ with st.sidebar:
     with st.form("parameters-form"):
         st.subheader("Parameters")
         model = pills("🤖 Model", ["Midjourney", "Niji"])
-        style = pills("💊 Style (Only for Niji)", ["Cute", "Expressive", "Scenic"])
+        mid_style = pills("⭐️ Style (Only for Midjourney)", [None, "Raw"])
+        niji_style = pills("💊 Style (Only for Niji)", [None, "Cute", "Expressive", "Scenic"])
         ar = pills("🖼 Aspect Ratio", ["3:4", "4:5", "9:16", "1:1", "16:9", "5:4", "4:3"])
         stylize = st.slider("🧂 Stylize", 0, 1000, 100, 50)
         quality = st.slider("🎨 Quality", .25, 2., 1., .25)
@@ -134,8 +135,11 @@ if prompt:
     flags = ""
     if model == "Niji":
         flags += " --niji"
-        if style:
-            flags += f" --style {style.lower()}"
+        if niji_style:
+            flags += f" --style {niji_style.lower()}"
+    else:
+        if mid_style:
+            flags += f" --style {mid_style.lower()}"
     if ar:
         flags += f" --ar {ar}"
     if tile:
