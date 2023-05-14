@@ -10,6 +10,25 @@ Midjourney UI: An elegantly designed, highly customizable interface, purpose-bui
 - User gallery
 - ChatGPT prompt helper
 
+## Installation
+
+> from https://github.com/George-iam/Midjourney_api#midjourney_api
+
+1.  Create Discord account and create your server(instruction here: https://discord.com/blog/starting-your-first-discord-server)
+2.  Create Midjourney account and invite Midjourney Bot to your server (instruction here: https://docs.midjourney.com/docs/invite-the-bot)
+3.  Make sure generation works from your server
+4. Log in to Discord in Chrome browser, open your server's text channel, click on three points upper right corner, then More Tools and then Developer Tools. Select Network tab, you'll see all the network activity of your page.
+5. Now type any prompt to generate in your text channel, and after you press Enter to send message with prompt, you'll see in Network Activity new line named "interaction". Press on it and choose Payload tab and you'll see payload_json - that's what we need! Copy channelid, application_id, guild_id, session_id, version and id values, we'll need it a little bit later. Then move from Payload tab to Headers tab and find "authorization" field, copy it's value too.
+---
+6. Copy and paste payload and header values to `.env` file. (Rename `.env.template` to `.env`)
+7. Get OpenAI API key from [here](https://platform.openai.com/account/api-keys) and copy/paste into `.env`.
+7. Rename `mj.db.template` to `mj.db` to prepare sqlite3 database.
+8. Run:
+
+```
+streamlit run Imagine.py
+```
+
 ## Dependency
 
 - streamlit==1.22.0
