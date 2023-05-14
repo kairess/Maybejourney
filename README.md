@@ -26,7 +26,8 @@ Midjourney UI: An elegantly designed, highly customizable interface, purpose-bui
 8. Run:
 
 ```
-streamlit run Imagine.py
+$ pip install -r requirements.txt
+$ streamlit run Imagine.py
 ```
 
 ## Dependency
