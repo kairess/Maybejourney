@@ -34,6 +34,12 @@ if "user_id" not in st.session_state:
     print("[*] user_id", st.session_state["user_id"])
 if "latest_id" not in st.session_state:
     st.session_state["latest_id"] = None
+if "page" not in st.session_state:
+    st.session_state["page"] = 0
+if "done" not in st.session_state:
+    st.session_state["done"] = False
+st.session_state["page"] = 0
+st.session_state["done"] = False
 
 @st.cache_resource
 def load_resources(user_id):
@@ -113,6 +119,8 @@ if prompt:
 
         prompt = ''.join([c for c in collected_messages])
 
+    progress_bar = st.progress(0, "Waiting to start")
+
     if seed == -1:
         seed = None
 
@@ -162,9 +170,11 @@ if prompt:
         if rows and len(st.session_state["requests"]) == len(rows):
             is_all_done = True
 
-            st.session_state["latest_id"] = rows[0]["id"]
-
             for i, row in enumerate(rows):
+                try:
+                    progress_bar.progress(int(row["status"]), text=f"{row['status']}%")
+                except:
+                    pass
                 try:
                     prompts[i].markdown(f"{row['full_prompt']} ({row['status']}%)")
                 except:
@@ -182,6 +192,7 @@ if prompt:
                     is_all_done = False
 
             if is_all_done:
+                st.session_state["latest_id"] = rows[0]["id"]
                 break
 
         time.sleep(5)
