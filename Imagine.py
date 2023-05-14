@@ -1,6 +1,7 @@
 import streamlit as st
 from streamlit_pills import pills
 from streamlit_extras.switch_page_button import switch_page
+from streamlit_extras.badges import badge
 from dotenv import dotenv_values
 import openai
 import apsw
@@ -66,6 +67,12 @@ def like():
 
 # Sidebar
 with st.sidebar:
+    c1, c2 = st.columns(2)
+    with c1:
+        badge(type="github", name="kairess/Maybejourney")
+    with c2:
+        badge(type="buymeacoffee", name="bbanghyong")
+
     like_button = st.button("❤️ Scrap the latest image", on_click=like)
     if like_button and st.session_state["latest_id"]:
         st.success("Look around our gallery to see others!")
