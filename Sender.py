@@ -21,10 +21,10 @@ class Sender():
         header = {
             "authorization": self.authorization
         }
-        
+
         prompt = prompt.replace("_", " ")
         prompt = " ".join(prompt.split())
-        prompt = re.sub(r"[^a-zA-Z0-9:\s]+", "", prompt)
+        prompt = re.sub(r"[^a-zA-Z0-9:,\-\s]+", "", prompt)
         prompt = prompt.lower()
 
         if seed is None:
@@ -52,7 +52,7 @@ class Sender():
                 "attachments": []
             },
         }
-        
+
         r = requests.post("https://discord.com/api/v9/interactions", json = payload , headers = header)
         while r.status_code != 204:
             r = requests.post("https://discord.com/api/v9/interactions", json = payload , headers = header)
@@ -61,3 +61,93 @@ class Sender():
         print(f"Prompt [{full_prompt}] successfully sent!")
 
         return full_prompt
+
+    def send_component(self, message_id, custom_id):
+        header = {
+            "authorization": self.authorization
+        }
+
+        payload = {
+            "type": 3,
+            "application_id": self.application_id,
+            "guild_id": self.guild_id,
+            "channel_id": self.channel_id,
+            "session_id": self.session_id,
+            "data": {
+                "component_type": 2,
+                "custom_id": custom_id,
+            },
+            "message_flags": 0,
+            "message_id": message_id,
+        }
+
+        r = requests.post("https://discord.com/api/v9/interactions", json = payload , headers = header)
+        while r.status_code != 204:
+            r = requests.post("https://discord.com/api/v9/interactions", json = payload , headers = header)
+            time.sleep(1)
+
+        print(f"[{custom_id}] successfully sent!")
+
+    def send_describe(self, filename, uploaded_filename):
+        header = {
+            "authorization": self.authorization
+        }
+
+        payload = {
+            "type": 2, 
+            "application_id": self.application_id,
+            "guild_id": self.guild_id,
+            "channel_id": self.channel_id,
+            "session_id": self.session_id,
+            "data": {
+                "version": self.version,
+                "id": self.id,
+                "name": "describe",
+                "type": 1,
+                "options": [{
+                    "type": 11,
+                    "name": "image",
+                    "value": 0
+                }],
+                "attachments": [{
+                    "id": "0",
+                    "filename": filename,
+                    "uploaded_filename": uploaded_filename
+                }],
+            },
+        }
+
+        r = requests.post("https://discord.com/api/v9/interactions", json = payload , headers = header)
+        while r.status_code != 204:
+            r = requests.post("https://discord.com/api/v9/interactions", json = payload , headers = header)
+            time.sleep(1)
+
+        print(f"Describe [{filename}] successfully sent!")
+
+    def send_info(self):
+        header = {
+            "authorization": self.authorization
+        }
+
+        payload = {
+            "type": 2, 
+            "application_id": self.application_id,
+            "guild_id": self.guild_id,
+            "channel_id": self.channel_id,
+            "session_id": self.session_id,
+            "data": {
+                "version": self.version,
+                "id": self.id,
+                "name": "info",
+                "type": 1,
+                "options": [],
+                "attachments": [],
+            },
+        }
+
+        r = requests.post("https://discord.com/api/v9/interactions", json = payload , headers = header)
+        while r.status_code != 204:
+            r = requests.post("https://discord.com/api/v9/interactions", json = payload , headers = header)
+            time.sleep(1)
+
+        print(f"Info successfully sent!")

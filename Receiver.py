@@ -1,10 +1,8 @@
-import pandas as pd
 from datetime import datetime
 import os
 import time
 import requests
 import re
-from pprint import pprint
 
 class Receiver():
     def __init__(self, config, local_path, user_id, con):
@@ -12,7 +10,6 @@ class Receiver():
         self.local_path = local_path
         self.user_id = user_id
         self.con = con
-        self.last_full_prompt = None
 
         self.sender_initializer()
 
@@ -25,6 +22,19 @@ class Receiver():
         r = requests.get(
             f"https://discord.com/api/v10/channels/{self.channel_id}/messages?limit={10}", headers=self.headers)
         return r.json()
+    
+    def collecting_describes(self, filename):
+        message_list  = self.retrieve_messages()
+
+        for message in message_list:
+            if (message["author"]["username"] == "Midjourney Bot"):
+                if "embeds" in message and len(message["embeds"]) > 0 and "image" in message["embeds"][0] and "description" in message["embeds"][0]:
+                    if filename not in message["embeds"][0]["image"]["url"]:
+                        continue
+
+                    return message["embeds"][0]["description"], message["embeds"][0]["image"]["url"]
+
+        return None, None
 
     def collecting_results(self, full_prompt_user):
         message_list  = self.retrieve_messages()
@@ -44,12 +54,21 @@ class Receiver():
                         prompt = full_prompt.split(" --")[0]
                         url = message["attachments"][0]["url"]
                         filename = message["attachments"][0]["filename"]
+                        components = message["components"]
 
-                        if not self.con.execute("select * from prompts where id = ? limit 1", (id,)).fetchone():
-                            self.con.execute("insert into prompts (id, user_id, prompt, full_prompt, url, filename, is_downloaded, status, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)", (id, self.user_id, prompt, full_prompt, url, filename, 0, 100, str(datetime.now())))
+                        self.con.ping()
+                        with self.con:
+                            with self.con.cursor() as cur:
+                                cur.execute("select * from prompts where id = %s limit 1", (id,))
+                                row = cur.fetchone()
+                            if not row:
+                                with self.con.cursor() as cur:
+                                    cur.execute("insert into prompts (id, user_id, prompt, full_prompt, url, filename, is_downloaded, status) values (%s, %s, %s, %s, %s, %s, %s, %s)", (id, self.user_id, prompt, full_prompt, url, filename, 0, 100))
+                                    self.con.commit()
 
-                            self.con.execute("delete from prompts where user_id = ? and status != ?", (self.user_id, 100))
-                            break
+                                    cur.execute("delete from prompts where user_id = %s and status != %s", (self.user_id, 100))
+                                    self.con.commit()
+                                return id, components
                     ### Rendering
                     else:
                         id = message["id"]
@@ -57,19 +76,27 @@ class Receiver():
                         prompt = full_prompt.split(" --")[0]
                         url = message["attachments"][0]["url"]
 
-                        if ("(fast)" in message["content"]) or ("(relaxed)" in message["content"]):
+                        if ("(fast)" in message["content"]) or ("(relaxed)" in message["content"]) or ("(fast, stealth)" in message["content"]) :
                             try:
-                                # status = re.findall("(\w*%)", message["content"])[0]
                                 status = int(re.findall("(\d+)%", message["content"])[0])
                             except:
                                 status = -1
 
-                        if not self.con.execute("select * from prompts where id = ? limit 1", (id,)).fetchone():
-                            self.con.execute("insert into prompts (id, user_id, prompt, full_prompt, url, is_downloaded, status, created_at) values (?, ?, ?, ?, ?, ?, ?, ?)", (id, self.user_id, prompt, full_prompt, url, 0, status, str(datetime.now())))
-                            break
-                        else:
-                            self.con.execute("update prompts set url = ?, status = ? where id = ?", (url, status, id))
-                            break
+                        self.con.ping()
+                        with self.con:
+                            with self.con.cursor() as cur:
+                                cur.execute("select * from prompts where id = %s limit 1", (id,))
+                            row = cur.fetchone()
+                            if not row:
+                                with self.con.cursor() as cur:
+                                    cur.execute("insert into prompts (id, user_id, prompt, full_prompt, url, is_downloaded, status) values (%s, %s, %s, %s, %s, %s, %s)", (id, self.user_id, prompt, full_prompt, url, 0, status))
+                                    self.con.commit()
+                                return id, None
+                            else:
+                                with self.con.cursor() as cur:
+                                    cur.execute("update prompts set url = %s, status = %s where id = %s", (url, status, id))
+                                    self.con.commit()
+                                return id, None
                 ### Add to queue
                 else:
                     id = message["id"]
@@ -80,12 +107,27 @@ class Receiver():
                     if "(Waiting to start)" in message["content"]:
                         status = 0
 
-                    if not self.con.execute("select * from prompts where id = ? limit 1", (id,)).fetchone():
-                        self.con.execute("insert into prompts (id, user_id, prompt, full_prompt, is_downloaded, status, created_at) values (?, ?, ?, ?, ?, ?, ?)", (id, self.user_id, prompt, full_prompt, 0, -1, str(datetime.now())))
-                        break
+                    self.con.ping()
+                    with self.con:
+                        with self.con.cursor() as cur:
+                            cur.execute("select * from prompts where id = %s limit 1", (id,))
+                            row = cur.fetchone()
+
+                    if not row:
+                        self.con.ping()
+                        with self.con:
+                            with self.con.cursor() as cur:
+                                cur.execute("insert into prompts (id, user_id, prompt, full_prompt, is_downloaded, status) values (%s, %s, %s, %s, %s, %s)", (id, self.user_id, prompt, full_prompt, 0, -1))
+                                self.con.commit()
+                            return id, None
+        return False, None
 
     def outputer(self):
-        waiting_for_download = self.con.execute("select full_prompt from prompts where is_downloaded = 0 and filename is not null and status = 100").fetchall()
+        self.con.ping()
+        with self.con:
+            with self.con.cursor() as cur:
+                cur.execute("select full_prompt from prompts where is_downloaded = 0 and filename is not null and status = 100")
+                waiting_for_download = cur.fetchall()
         if len(waiting_for_download) > 0:
             print(datetime.now().strftime("%H:%M:%S"))
             print("waiting for download prompts: ", waiting_for_download)
@@ -94,13 +136,18 @@ class Receiver():
     def downloading_results(self):
         processed_prompts = []
 
-        for row in self.con.execute("select * from prompts where is_downloaded = 0 and filename is not null and status = 100").fetchall():
-            response = requests.get(row["url"])
-            with open(os.path.join(self.local_path, row["filename"]), "wb") as req:
-                req.write(response.content)
+        self.con.ping()
+        with self.con:
+            with self.con.cursor() as cur:
+                cur.execute("select * from prompts where is_downloaded = 0 and filename is not null and status = 100")
+                for row in cur.fetchall():
+                    response = requests.get(row["url"])
+                    with open(os.path.join(self.local_path, row["filename"]), "wb") as req:
+                        req.write(response.content)
 
-            self.con.execute("update prompts set is_downloaded = ? where id = ?", (1, row["id"]))
-            processed_prompts.append(row["full_prompt"])
+                    cur.execute("update prompts set is_downloaded = %s where id = %s", (1, row["id"]))
+                    self.con.commit()
+                    processed_prompts.append(row["full_prompt"])
 
         if len(processed_prompts) > 0:
             print(datetime.now().strftime("%H:%M:%S"))

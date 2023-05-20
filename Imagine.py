@@ -1,14 +1,11 @@
 import streamlit as st
 from streamlit_pills import pills
-from streamlit_extras.switch_page_button import switch_page
 from streamlit_extras.badges import badge
-from dotenv import dotenv_values
 import openai
-import apsw
-import apsw.ext
+import pymysql.cursors
 import time
 import uuid
-from datetime import datetime
+import re
 from Sender import Sender
 from Receiver import Receiver
 from footer import footer
@@ -20,21 +17,29 @@ from prompt_template import *
 st.set_page_config(page_title="Maybejourney - YouTube 빵형의 개발도상국", page_icon="🎨")
 
 @st.cache_data
-def load_config(path=".env"):
-    return dotenv_values(path)
+def load_config():
+    config = {
+        "authorization": st.secrets["authorization"],
+        "application_id": st.secrets["application_id"],
+        "guild_id": st.secrets["guild_id"],
+        "channel_id": st.secrets["channel_id"],
+        "session_id": st.secrets["session_id"],
+        "version": st.secrets["version"],
+        "id": st.secrets["id"],
+        "openai_api_key": st.secrets["openai_api_key"],
+    }
+    return config
 
-config = load_config(".env")
+config = load_config()
 openai.api_key = config["openai_api_key"]
 
-if "requests" not in st.session_state:
-    st.session_state["requests"] = []
-if "gpt_responses" not in st.session_state:
-    st.session_state["gpt_responses"] = ""
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = str(uuid.uuid4())
     print("[*] user_id", st.session_state["user_id"])
 if "latest_id" not in st.session_state:
     st.session_state["latest_id"] = None
+if "history" not in st.session_state:
+    st.session_state["history"] = ""
 if "page" not in st.session_state:
     st.session_state["page"] = 0
 if "done" not in st.session_state:
@@ -44,17 +49,40 @@ st.session_state["done"] = False
 
 @st.cache_resource
 def load_resources(user_id):
-    con = apsw.Connection("mj.db")
-    def row_factory(cursor, row):
-        columns = [t[0] for t in cursor.getdescription()]
-        return dict(zip(columns, row))
-    con.setrowtrace(row_factory)
+    con = pymysql.connect(
+        host=st.secrets["db_host"],
+        user=st.secrets["db_username"],
+        password=st.secrets["db_password"],
+        database='maybejourney',
+        cursorclass=pymysql.cursors.DictCursor)
     return con, Sender(config=config), Receiver(config, "images", user_id, con)
 con, sender, receiver = load_resources(st.session_state["user_id"])
 
 
 # UI
-st.header("Maybejourney")
+st.header("Maybejourney v1.3")
+
+with st.expander("📝Update"):
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        badge(type="github", name="kairess/Maybejourney")
+    with c2:
+        badge(type="buymeacoffee", name="bbanghyong")
+    with c3:
+        st.markdown("❤️[서버 비용 후원하기](https://lnk.bio/kairess)")
+
+    st.markdown("""
+- v1.3 :: May 20, 2023
+    - Add `Describe` function
+- v1.2 :: May 17, 2023
+    - Add `upsample` and `variation` of generated images
+- v1.1 :: May 15, 2023
+    - Replace sqlite3 to MariaDB on AWS (Support me a beer)
+    - Show 1 image per a shot
+    - With `DALL-E`
+- v1.0 :: May 14, 2023
+    - Launch🚀
+""")
 
 def like():
     st.session_state["input"] = ""
@@ -62,23 +90,15 @@ def like():
     if not latest_id:
         return False
 
-    con.execute("update prompts set is_liked = ? where id = ? and is_downloaded = 1", (1, latest_id))
+    con.ping()
+    with con:
+        with con.cursor() as cur:
+            cur.execute("update prompts set is_liked = %s where id = %s and is_downloaded = 1", (1, latest_id))
+        con.commit()
 
 
 # Sidebar
 with st.sidebar:
-    c1, c2 = st.columns(2)
-    with c1:
-        badge(type="github", name="kairess/Maybejourney")
-    with c2:
-        badge(type="buymeacoffee", name="bbanghyong")
-
-    like_button = st.button("❤️ Scrap the latest image", on_click=like)
-    if like_button and st.session_state["latest_id"]:
-        st.success("Look around our gallery to see others!")
-        time.sleep(1)
-        switch_page("Gallery")
-
     with st.form("parameters-form"):
         st.subheader("Parameters")
         model = pills("🤖 Model", ["Midjourney", "Niji"])
@@ -97,24 +117,35 @@ with st.sidebar:
         history = st.empty().markdown("- Empty")
 
 # Prompt
-prompt = st.text_input("Prompt", placeholder="Draw your imagination or use ? to ask ChatGPT to generate prompts.", key="input")
+with st.form("prompt-form"):
+    st.info("프롬프트 맨 앞에 / 를 붙여 ChatGPT에게 프롬프트를 생성하게 할 수 있습니다!", icon="🤖")
+    prompt = st.text_area("Prompt", placeholder="Draw your imagination or use / to ask ChatGPT to generate prompts.", key="input")
+    dalle = st.checkbox("with DALL-E")
+    submit_prompt = st.form_submit_button("Submit")
 
 prompt_helper = st.empty()
+progress_bar = st.empty()
+result_image = st.empty()
+full_prompt_caption = st.empty()
+dalle_result_image = st.empty()
+dalle_prompt_caption = st.empty()
 
 footer(*footer_content)
 
 # Function
-if prompt:
-    if prompt.startswith("?"):
+if submit_prompt and prompt.strip():
+    prompt = prompt.strip()
+    if prompt.startswith("/"):
         new_gpt_prompt = gpt_prompt.copy()
         new_gpt_prompt.append({
             "role": "user",
-            "content": prompt
+            "content": prompt[1:]
         })
 
-        response = openai.ChatCompletion.create(model="gpt-3.5-turbo",
-                                                messages=new_gpt_prompt,
-                                                stream=True)
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=new_gpt_prompt,
+            stream=True)
 
         collected_messages = []
         for chunk in response:
@@ -123,11 +154,18 @@ if prompt:
             if "content" in chunk_message:
                 collected_messages.append(chunk_message["content"])
                 gpt_response = ''.join(collected_messages)
-                prompt_helper.markdown(gpt_response)
+                prompt_helper.markdown(f"🤖 {gpt_response}")
 
-        prompt = ''.join([c for c in collected_messages])
+        prompt = "".join([c for c in collected_messages])
 
-    progress_bar = st.progress(0, "Waiting to start")
+        matches = re.findall(r'\*([^*]+)', prompt)
+        if not matches or len(matches) == 0:
+            st.warning("Cannot find prompt from ChatGPT response. Try again.", icon="⚠")
+            st.stop()
+
+        prompt = ""
+        for match in matches:
+            prompt += match.split("\n")[0] + " "
 
     if seed == -1:
         seed = None
@@ -154,56 +192,112 @@ if prompt:
 
     full_prompt = sender.send(prompt=prompt, seed=seed, flags=flags)
 
-    st.session_state["requests"].append(prompt)
+    st.session_state["history"] += f"- {full_prompt}\n"
+    history.markdown(st.session_state["history"])
 
-    con.execute(f"insert into queues (user_id, full_prompt, created_at) values('{st.session_state['user_id']}', '{full_prompt}', '{datetime.now()}')")
-
-    imgs, prompts, breaks = [], [], []
-
-    for req in st.session_state["requests"]:
-        prompts.append(st.empty())
-        imgs.append(st.empty())
-        breaks.append(st.empty())
-
-    history_text = ""
-    for i, row in enumerate(con.execute("select * from queues where user_id = ? order by created_at desc", (st.session_state["user_id"],)).fetchall()):
-        history_text += f"- {row['full_prompt']}\n"
-    history.markdown(history_text)
+    # Result
+    progress_bar.progress(0, "Waiting to start")
 
     while True:
-        receiver.collecting_results(full_prompt)
+        id, components = receiver.collecting_results(full_prompt)
+        if not id:
+            time.sleep(2.5)
+            continue
+
         receiver.outputer()
         receiver.downloading_results()
 
-        # TODO: Error sometimes KeyError: 'user_id'
-        rows = con.execute("select * from prompts where user_id = ? order by created_at desc", (st.session_state["user_id"],)).fetchall()
+        con.ping()
+        with con:
+            with con.cursor() as cur:
+                cur.execute("select * from prompts where id = %s limit 1", (id,))
+                row = cur.fetchone()
 
-        if rows and len(st.session_state["requests"]) == len(rows):
-            is_all_done = True
+        if not row:
+            continue
 
-            for i, row in enumerate(rows):
-                try:
-                    progress_bar.progress(int(row["status"]), text=f"{row['status']}%")
-                except:
-                    pass
-                try:
-                    prompts[i].markdown(f"{row['full_prompt']} ({row['status']}%)")
-                except:
-                    pass
+        prompt_helper.empty()
 
-                if row["url"]:
-                    try:
-                        imgs[i].image(row["url"])
-                    except:
-                        pass
+        try:
+            progress_bar.progress(int(row["status"]), text=f"{row['status']}%")
+        except:
+            pass
+        try:
+            full_prompt_caption.caption(f"{row['full_prompt']} ({row['status']}%)")
+        except:
+            pass
 
-                breaks[i].markdown("----")
+        if row["url"]:
+            try:
+                result_image.image(row["url"])
+            except:
+                pass
 
-                if row["status"] != 100:
-                    is_all_done = False
+        if row["status"] == 100:
+            progress_bar.empty()
+            st.session_state["latest_id"] = row["id"]
 
-            if is_all_done:
-                st.session_state["latest_id"] = rows[0]["id"]
-                break
+            def show_component(id, components, full_prompt):
+                columns = st.columns(9)
+                columns[0].button("❤️", on_click=like)
 
-        time.sleep(5)
+                if components:
+                    column_index = 1
+                    for comp in components:
+                        for i, c in enumerate(comp["components"]):
+                            if "upsample" in c["custom_id"]:
+                                columns[column_index].button(f"U{i+1}", on_click=run_component, args=(id, "upsample", c["custom_id"], full_prompt, i))
+                                column_index += 1
+                            elif "variation" in c["custom_id"]:
+                                columns[column_index].button(f"V{i+1}", on_click=run_component, args=(id, "variation", c["custom_id"], full_prompt, i))
+                                column_index += 1
+
+            def run_component(id, task, custom_id, full_prompt, image_index):
+                sender.send_component(id, custom_id)
+
+                with st.spinner(f"{task.capitalize()} Image #{image_index + 1}..."):
+                    while True:
+                        id, components = receiver.collecting_results(full_prompt)
+                        if not id:
+                            time.sleep(2.5)
+                            continue
+
+                        receiver.outputer()
+                        receiver.downloading_results()
+
+                        if id and components:
+                            con.ping()
+                            with con:
+                                with con.cursor() as cur:
+                                    cur.execute("select * from prompts where id = %s order by created_at desc limit 1", (id,))
+                                    row = cur.fetchone()
+
+                            if row["url"]:
+                                try:
+                                    st.session_state["latest_id"] = row["id"]
+
+                                    st.image(row["url"])
+                                    st.caption(full_prompt)
+                                    show_component(id, components, full_prompt)
+                                except:
+                                    pass
+                            break
+
+                        time.sleep(2.5)
+
+            show_component(id, components, full_prompt)
+
+            break
+
+        time.sleep(2.5)
+
+    if dalle:
+        with st.spinner('Waiting for DALL-E...'):
+            dalle_prompt = full_prompt.split("--")[0]
+            dalle_prompt = re.sub(r"[^a-zA-Z,\s]+", "", dalle_prompt).strip()
+            dalle_res = openai.Image.create(
+                prompt=full_prompt,
+                n=1,
+                size="1024x1024")
+            dalle_result_image.image(dalle_res['data'][0]['url'])
+            dalle_prompt_caption.caption(dalle_prompt)

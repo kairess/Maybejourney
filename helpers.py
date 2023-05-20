@@ -4,9 +4,14 @@ from footer import link
 # Footer
 footer_content = [
     "Made with ❤️ by ",
-    link("https://github.com/kairess", "kairess"),
+    link("https://github.com/kairess", "kairess", color="inherit"),
     " / ",
-    link("https://www.youtube.com/@bbanghyong", "빵형의 개발도상국"),
+    link("https://www.youtube.com/@bbanghyong", "빵형의 개발도상국", color="inherit"),
+    "<br/>",
+    "Supported by AIFrenz ",
+    link("https://aifrenz.notion.site/AI-4fe1e334ffbe4cb4924d1caa3f7cd8b0", "창의AI연구회", color="inherit"),
+    " / ",
+    link("https://www.m47rix.com", "주식회사 더매트릭스", color="inherit"),
 ]
 
 def focus():

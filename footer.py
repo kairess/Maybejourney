@@ -17,7 +17,7 @@ def footer(*args):
     <style>
       # MainMenu {visibility: hidden;}
       footer {visibility: hidden;}
-     .stApp { bottom: 74px; }
+     .stApp { bottom: 87px; }
     </style>
     """
 
@@ -28,7 +28,7 @@ def footer(*args):
         margin=px(0, 0, 0, 0),
         width=percent(100),
         text_align="center",
-        height="auto",
+        height="120px",
         opacity=1,
         z_index=999999,
     )
