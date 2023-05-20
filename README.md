@@ -53,15 +53,15 @@ $ streamlit run Imagine.py
 
 ## Dependency
 
-htbuilder==0.6.1
-openai==0.27.6
-pandas==1.4.4
-python-dotenv==1.0.0
-Requests==2.30.0
-streamlit==1.22.0
-streamlit_extras==0.2.7
-streamlit_pills==0.3.0
-PyMySQL==1.0.3
+- htbuilder==0.6.1
+- openai==0.27.6
+- pandas==1.4.4
+- python-dotenv==1.0.0
+- Requests==2.30.0
+- streamlit==1.22.0
+- streamlit_extras==0.2.7
+- streamlit_pills==0.3.0
+- PyMySQL==1.0.3
 
 ## Credits
 
